@@ -3,6 +3,7 @@ package com.mojtaba;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -34,6 +35,8 @@ public final class MyProcessor extends AbstractProcessor {
     private Filer filer;
     private Messager messager;
 
+    private int round = -1;
+
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv)
     {
@@ -48,7 +51,9 @@ public final class MyProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment)
     {
-        for (Element annotatedElement : roundEnvironment.getElementsAnnotatedWith(MySingleton.class))
+        round++;
+        Set<? extends Element> elementsAnnotatedWithMySingleton = roundEnvironment.getElementsAnnotatedWith(MySingleton.class);
+        for (Element annotatedElement : elementsAnnotatedWithMySingleton)
         {
             if (annotatedElement.getKind() != ElementKind.CLASS)
             {
@@ -57,26 +62,28 @@ public final class MyProcessor extends AbstractProcessor {
                         String.format("Only classes can be annotated with @" + MySingleton.class.getSimpleName()));
                 return true;
             }
+        }
 
-            try
+        try
+        {
+            if (round == 0)
             {
-                generateJavaFile(annotatedElement, filer);
+                generateJavaFile(elementsAnnotatedWithMySingleton, filer);
             }
-            catch (IOException ex)
-            {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, ex.toString());
-            }
+        }
+        catch (IOException ex)
+        {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, ex.toString());
         }
 
         return true;
     }
 
-    public void generateJavaFile(Element annotatedElement, Filer filer) throws IOException
+    public void generateJavaFile(Collection<? extends Element> elements, Filer filer) throws IOException
     {
         String PACKAGE_NAME = "com.mojtaba";
-        String className = annotatedElement.getSimpleName().toString();
 
-        String fileName = className + "_singleton";
+        String fileName = "AllSingletons";
 
         List<Element> originatingElements = new ArrayList<>();
 
@@ -85,30 +92,37 @@ public final class MyProcessor extends AbstractProcessor {
 
         try (Writer writer = filerSourceFile.openWriter())
         {
-
             writer.append(
                     // imports
                     "package " + PACKAGE_NAME + ";" +
-                            "\n\n" +
+                            "\n\n");
 
-                            // class declaration
-                            "public class " + fileName + " {\n " +
+            writer.append(
+                    // class declaration
+                    "public class " + fileName + " {\n ");
 
-                            //static field
-                            "\tprivate static " + className + " INSTANCE;\n\n" +
+            for (Element element : elements)
+            {
+                String className = element.getSimpleName().toString();
 
-                            // method body
-                            "\tpublic static " + className + " getInstance() \n\t{\n" +
-                            "\t\tif (INSTANCE == null) \n" +
-                            "\t\t{\n" +
-                            "\t\t\tINSTANCE = new " + className + "();\n" +
-                            "\t\t}\n" +
-                            "\n" +
-                            "\t\treturn INSTANCE;\n" +
-                            "\t}\n" +
+                writer.append(
+                        //static field
+                        "\tprivate static " + className + " " + className + "_INSTANCE;\n\n" +
 
-                            "}");
+                                // method body
+                                "\tpublic static " + className + " get" + className + "Instance() \n\t{\n" +
+                                "\t\tif (" + className + "_INSTANCE == null) \n" +
+                                "\t\t{\n" +
+                                "\t\t\t" + className + "_INSTANCE = new " + className + "();\n" +
+                                "\t\t}\n" +
+                                "\n" +
+                                "\t\treturn " + className + "_INSTANCE;\n" +
+                                "\t}\n");
 
+                writer.append("\n\n");
+            }
+
+            writer.append("}");
         }
         catch (Exception e)
         {
