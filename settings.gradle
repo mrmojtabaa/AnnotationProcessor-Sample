@@ -1,0 +1,1 @@
+include ':AnnotationProcessorExamples', ':my-annotations',':my-processor'
