@@ -1,6 +1,6 @@
-package example_myprocessor;
+package com.mojtaba;
 
-public class SimpleAnnotation {
+public class Main {
 
     public static void main(String[] args)
     {
